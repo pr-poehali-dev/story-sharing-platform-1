@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,10 +12,99 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import Icon from "@/components/ui/icon";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const [isWriting, setIsWriting] = useState(false);
+  const [currentStory, setCurrentStory] = useState(null);
+  const [storyContent, setStoryContent] = useState("");
+  const [collaborators, setCollaborators] = useState([]);
+  const [lastSaved, setLastSaved] = useState(new Date());
+  const [wordCount, setWordCount] = useState(0);
+  const [currentChapter, setCurrentChapter] = useState(1);
+  const [chapters, setChapters] = useState([
+    { id: 1, title: "Глава 1", content: "", author: "Вы" },
+  ]);
+  const [isCollaborative, setIsCollaborative] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [showComments, setShowComments] = useState(false);
+
+  // Автосохранение
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (storyContent.trim()) {
+        setLastSaved(new Date());
+      }
+    }, 30000); // Автосохранение каждые 30 секунд
+
+    return () => clearInterval(interval);
+  }, [storyContent]);
+
+  // Подсчет слов
+  useEffect(() => {
+    const words = storyContent
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
+    setWordCount(words.length);
+  }, [storyContent]);
+
+  const startWriting = (story = null) => {
+    setCurrentStory(story);
+    setIsWriting(true);
+    setActiveTab("writing");
+    if (story) {
+      setStoryContent(story.content || "");
+      setIsCollaborative(story.collaborative || false);
+    }
+  };
+
+  const addCollaborator = () => {
+    // Заглушка для добавления соавтора
+    const newCollaborator = {
+      id: Date.now(),
+      name: "Новый соавтор",
+      avatar: "",
+      online: true,
+      lastSeen: new Date(),
+    };
+    setCollaborators([...collaborators, newCollaborator]);
+  };
+
+  const addComment = (text, selection = null) => {
+    const newComment = {
+      id: Date.now(),
+      text,
+      author: "Вы",
+      timestamp: new Date(),
+      selection,
+      replies: [],
+    };
+    setComments([...comments, newComment]);
+  };
+
+  const addChapter = () => {
+    const newChapter = {
+      id: Date.now(),
+      title: `Глава ${chapters.length + 1}`,
+      content: "",
+      author: "Вы",
+    };
+    setChapters([...chapters, newChapter]);
+    setCurrentChapter(newChapter.id);
+  };
 
   const popularStories = [
     {
@@ -155,6 +244,7 @@ const Index = () => {
                   <Button
                     size="lg"
                     className="bg-white text-primary hover:bg-white/90"
+                    onClick={() => startWriting()}
                   >
                     <Icon name="PenTool" size={20} className="mr-2" />
                     Начать писать
@@ -345,7 +435,16 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="flex space-x-4">
-                  <Button className="flex-1">
+                  <Button
+                    className="flex-1"
+                    onClick={() =>
+                      startWriting({
+                        title: "Новая история",
+                        content: "",
+                        collaborative: isCollaborative,
+                      })
+                    }
+                  >
                     <Icon name="Plus" size={16} className="mr-2" />
                     Создать историю
                   </Button>
@@ -397,7 +496,11 @@ const Index = () => {
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startWriting(story)}
+                        >
                           <Icon name="Edit" size={16} className="mr-1" />
                           Редактировать
                         </Button>
@@ -471,7 +574,11 @@ const Index = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" className="flex-1">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => startWriting(story)}
+                      >
                         <Icon name="BookOpen" size={14} className="mr-2" />
                         Читать
                       </Button>
@@ -483,6 +590,274 @@ const Index = () => {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "writing" && (
+          <div className="animate-fade-in">
+            <div className="flex h-[calc(100vh-200px)]">
+              {/* Sidebar */}
+              <div className="w-80 border-r border-border bg-card/50 p-4 overflow-y-auto">
+                <div className="space-y-6">
+                  {/* Story Info */}
+                  <div>
+                    <h3 className="font-semibold mb-2">Информация о истории</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Слов:</span>
+                        <span>{wordCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Глав:</span>
+                        <span>{chapters.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Последнее сохранение:
+                        </span>
+                        <span>{lastSaved.toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Chapters */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Главы</h3>
+                      <Button variant="ghost" size="sm" onClick={addChapter}>
+                        <Icon name="Plus" size={14} />
+                      </Button>
+                    </div>
+                    <div className="space-y-1">
+                      {chapters.map((chapter) => (
+                        <div
+                          key={chapter.id}
+                          className={`p-2 rounded cursor-pointer transition-colors ${
+                            currentChapter === chapter.id
+                              ? "bg-primary/10 text-primary"
+                              : "hover:bg-accent"
+                          }`}
+                          onClick={() => setCurrentChapter(chapter.id)}
+                        >
+                          <div className="text-sm font-medium">
+                            {chapter.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {
+                              chapter.content
+                                .split(" ")
+                                .filter((w) => w.length > 0).length
+                            }{" "}
+                            слов
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isCollaborative && (
+                    <>
+                      <Separator />
+
+                      {/* Collaborators */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold">Соавторы</h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={addCollaborator}
+                          >
+                            <Icon name="UserPlus" size={14} />
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {collaborators.map((collaborator) => (
+                            <div
+                              key={collaborator.id}
+                              className="flex items-center space-x-2"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">
+                                  {collaborator.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 text-sm">
+                                <div className="font-medium">
+                                  {collaborator.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {collaborator.online ? "Онлайн" : "Оффлайн"}
+                                </div>
+                              </div>
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  collaborator.online
+                                    ? "bg-green-500"
+                                    : "bg-gray-400"
+                                }`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Main Editor */}
+              <div className="flex-1 flex flex-col">
+                {/* Toolbar */}
+                <div className="border-b border-border p-4 bg-card/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsWriting(false)}
+                      >
+                        <Icon name="ArrowLeft" size={16} className="mr-2" />
+                        Назад
+                      </Button>
+                      <Separator orientation="vertical" className="h-6" />
+                      <Button variant="ghost" size="sm">
+                        <Icon name="Save" size={16} className="mr-2" />
+                        Сохранить
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Icon name="Download" size={16} className="mr-2" />
+                        Экспорт
+                      </Button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Icon
+                              name="MessageCircle"
+                              size={16}
+                              className="mr-2"
+                            />
+                            Комментарии ({comments.length})
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Комментарии</DialogTitle>
+                          </DialogHeader>
+                          <ScrollArea className="h-96">
+                            <div className="space-y-4">
+                              {comments.map((comment) => (
+                                <div
+                                  key={comment.id}
+                                  className="border rounded p-3"
+                                >
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="text-xs">
+                                        {comment.author.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm font-medium">
+                                      {comment.author}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {comment.timestamp.toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm">{comment.text}</p>
+                                </div>
+                              ))}
+                              {comments.length === 0 && (
+                                <div className="text-center text-muted-foreground py-8">
+                                  Комментариев пока нет
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
+                          <div className="flex space-x-2">
+                            <Input
+                              placeholder="Добавить комментарий..."
+                              className="flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => addComment("Новый комментарий")}
+                            >
+                              <Icon name="Send" size={14} />
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="ghost" size="sm">
+                        <Icon name="Share" size={16} className="mr-2" />
+                        Поделиться
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Editor */}
+                <div className="flex-1 p-6 bg-background">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="mb-4">
+                      <Input
+                        placeholder="Название главы..."
+                        className="text-xl font-bold border-none bg-transparent p-0 focus-visible:ring-0"
+                        value={
+                          chapters.find((c) => c.id === currentChapter)
+                            ?.title || ""
+                        }
+                        onChange={(e) => {
+                          const updatedChapters = chapters.map((c) =>
+                            c.id === currentChapter
+                              ? { ...c, title: e.target.value }
+                              : c,
+                          );
+                          setChapters(updatedChapters);
+                        }}
+                      />
+                    </div>
+                    <Textarea
+                      placeholder="Начните писать свою историю..."
+                      className="min-h-[500px] border-none bg-transparent p-0 resize-none focus-visible:ring-0 text-lg leading-relaxed font-source"
+                      value={storyContent}
+                      onChange={(e) => setStoryContent(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Status Bar */}
+                <div className="border-t border-border p-2 bg-card/50">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-4">
+                      <span>Слов: {wordCount}</span>
+                      <span>Символов: {storyContent.length}</span>
+                      <span>
+                        Глава{" "}
+                        {chapters.findIndex((c) => c.id === currentChapter) + 1}{" "}
+                        из {chapters.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      {isCollaborative && (
+                        <div className="flex items-center space-x-2">
+                          <Icon name="Users" size={14} />
+                          <span>{collaborators.length + 1} участников</span>
+                        </div>
+                      )}
+                      <div className="flex items-center space-x-2">
+                        <Icon name="Clock" size={14} />
+                        <span>Сохранено: {lastSaved.toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
